@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>自然语言意图式 SQL 构造器</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>自然语言意图式 SQL 构造器</h1>
+          <p>本地构造 SQL，不连接数据库，不执行 SQL。</p>
+          <div class="title-utilities" aria-label="配置与历史">
+            <button id="openFileSyncButton" class="title-utility-button" type="button">本地配置</button>
+            <button id="openHistoryButton" class="title-utility-button" type="button">历史</button>
+          </div>
+        </div>
+        <div class="topbar-controls">
+          <label class="dialect-picker">
+            数据库方言
+            <select id="dialectSelect" aria-label="数据库方言"></select>
+          </label>
+          <label class="dialect-picker compact-picker" id="sqliteVersionField" hidden>
+            SQLite 版本
+            <select id="sqliteVersionSelect" aria-label="SQLite 版本"></select>
+          </label>
+          <label class="dialect-picker compact-picker">
+            标识符引用
+            <select id="identifierQuoteSelect" aria-label="标识符引用策略"></select>
+          </label>
+          <label class="dialect-picker compact-picker">
+            标识符大小写
+            <select id="identifierCaseSelect" aria-label="标识符大小写策略"></select>
+          </label>
+          <label class="dialect-picker compact-picker">
+            文本匹配
+            <select id="textMatchCaseSelect" aria-label="文本匹配大小写策略"></select>
+          </label>
+          <div class="mode-switch" role="tablist" aria-label="能力模式">
+            <button class="mode-button" data-mode="normal" type="button">普通</button>
+            <button class="mode-button" data-mode="advanced" type="button">高级</button>
+            <button class="mode-button" data-mode="expert" type="button">专家</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="panel dictionary-panel" aria-label="我的数据字典">
+          <div class="panel-heading">
+            <h2>数据字典</h2>
+            <button id="openDictionaryManageButton" class="micro-button" type="button">管理字典</button>
+          </div>
+          <div class="dictionary-toolbar">
+            <select id="dictionarySelect"></select>
+          </div>
+
+          <div id="dictionaryManageModal" class="utility-modal" hidden role="dialog" aria-modal="true" aria-labelledby="dictionaryManageTitle">
+            <div class="utility-modal-backdrop" data-close-dictionary-manage></div>
+            <section class="table-editor-dialog dictionary-manager-dialog">
+              <header class="table-editor-header">
+                <div><span class="eyebrow">数据字典</span><h2 id="dictionaryManageTitle">管理字典</h2></div>
+                <button class="icon-button" type="button" data-close-dictionary-manage aria-label="关闭">×</button>
+              </header>
+              <div class="table-editor-meta">
+                <div><strong>字典列表</strong><p class="table-editor-hint">可直接修改名称；勾选后删除。保存后才会真正生效。</p></div>
+                <div class="table-editor-row-actions"><button id="addDictionaryRowButton" class="secondary-button" type="button">+ 增行</button><button id="deleteDictionaryRowsButton" class="secondary-button danger-button" type="button">− 删行</button></div>
+              </div>
+              <div class="table-editor-grid-wrap"><table class="table-editor-grid dictionary-manager-grid"><thead><tr><th><span class="sr-only">选择</span></th><th>#</th><th>字典名称</th><th>状态</th></tr></thead><tbody id="dictionaryManageRows"></tbody></table></div>
+              <footer class="table-editor-footer"><button class="secondary-button" type="button" data-close-dictionary-manage>取消</button><button id="saveDictionaryManagerButton" type="button">保存</button></footer>
+            </section>
+          </div>
+
+          <div id="dictionaryList" class="dictionary-list"></div>
+
+          <div id="tableEditorModal" class="table-editor-modal" hidden role="dialog" aria-modal="true" aria-labelledby="tableEditorTitle">
+            <div class="table-editor-backdrop" data-close-table-editor></div>
+            <section class="table-editor-dialog">
+              <header class="table-editor-header">
+                <div><span class="eyebrow">表结构编辑</span><h2 id="tableEditorTitle">新建表</h2></div>
+                <button class="icon-button" type="button" data-close-table-editor aria-label="关闭">×</button>
+              </header>
+              <div class="table-editor-meta">
+                <label>表编码<input id="tableEditorNameInput" type="text" placeholder="例如 customer" /></label>
+                <label>表名称<input id="tableEditorLabelInput" type="text" placeholder="例如 客户" /></label>
+                <div class="table-editor-row-actions"><button id="addStructureRowButton" class="secondary-button" type="button">+ 增行</button><button id="deleteStructureRowsButton" class="secondary-button danger-button" type="button">− 删行</button></div>
+              </div>
+              <p class="table-editor-hint">可直接从 Excel 复制并粘贴。光标在哪一列，就从该列开始按行列落格；可一次粘贴编码和字段名称两列。类型支持文本、数字、日期、布尔。</p>
+              <div class="table-editor-grid-wrap"><table id="tableEditorGrid" class="table-editor-grid"><thead><tr><th><span class="sr-only">选择</span></th><th>#</th><th>字段编码</th><th>字段名称</th><th>类型</th><th>主键</th></tr></thead><tbody id="tableEditorRows"></tbody></table></div>
+              <footer class="table-editor-footer"><button class="secondary-button" type="button" data-close-table-editor>取消</button><button id="saveTableStructureButton" type="button">保存</button></footer>
+            </section>
+          </div>        </aside>
+
+          <div id="dictionaryImportModal" class="utility-modal" hidden role="dialog" aria-modal="true" aria-labelledby="dictionaryImportTitle">
+            <div class="utility-modal-backdrop" data-close-dictionary-import></div>
+            <section class="utility-dialog import-dialog">
+              <header class="utility-dialog-header">
+                <div><span class="eyebrow">数据字典</span><h2 id="dictionaryImportTitle">导入表字段</h2></div>
+                <button class="icon-button" type="button" data-close-dictionary-import aria-label="关闭">×</button>
+              </header>
+              <form id="pasteImportForm" class="compact-form paste-import-form utility-panel" autocomplete="off">
+                <label>粘贴方式<select id="pasteFormatSelect"><option value="bip">BIP数据字典格式</option></select></label>
+                <label>粘贴表和字段<textarea id="dictionaryPasteInput" rows="10" placeholder="粘贴 BIP 数据字典内容，系统会自动识别表名、字段编码、字段名称和字段类型。"></textarea></label>
+                <button id="importDictionaryPasteButton" type="submit">自动添加表和字段</button>
+                <p id="pasteImportStatus" class="paste-import-status"></p>
+                <section class="bip-import-tutorial" aria-labelledby="bipImportTutorialTitle">
+                  <div class="bip-import-tutorial-copy">
+                    <span class="eyebrow">BIP 数据字典格式</span>
+                    <h3 id="bipImportTutorialTitle">按图示复制字段表格后粘贴导入</h3>
+                    <ol>
+                      <li>在 YonBIP 中打开需要导入的表，定位到字段列表。</li>
+                      <li>全选字段表格内容（如图蓝色选区），复制。</li>
+                      <li>回到本窗口，粘贴后点击“自动添加表和字段”。</li>
+                    </ol>
+                  </div>
+                  <figure class="bip-import-tutorial-figure">
+                    <img src="./assets/bip-data-dictionary-tutorial.png" alt="YonBIP 数据字典字段表格示例：选中全部字段后复制" />
+                    <figcaption>示例：全选 YonBIP 数据字典中的字段表格，再复制到上方输入框。</figcaption>
+                  </figure>
+                </section>
+              </form>
+            </section>
+          </div>
+
+        <section class="panel builder-panel" aria-label="意图构建区">
+          <div class="sentence-card">
+            <span class="eyebrow">句子式摘要</span>
+            <p id="intentSentence"></p>
+          </div>
+
+          <nav id="builderStepTabs" class="builder-step-tabs" aria-label="意图构建步骤"></nav>
+
+          <div class="builder-grid">
+            <section class="intent-card builder-step-panel" data-step-panel="action">
+              <div class="card-heading">
+                <span class="step-badge">1</span>
+                <h2>我要做什么</h2>
+              </div>
+              <div id="actionButtons" class="segmented"></div>
+            </section>
+
+            <section class="intent-card builder-step-panel" data-step-panel="target">
+              <div class="card-heading">
+                <span class="step-badge">2</span>
+                <h2>对谁做</h2>
+              </div>
+              <label>
+                主表
+                <select id="baseTableSelect"></select>
+              </label>
+            </section>
+
+            <section class="intent-card builder-step-panel" data-step-panel="fields">
+              <div class="card-heading">
+                <span class="step-badge">3</span>
+                <h2>保留什么</h2>
+              </div>
+              <div class="toolbar-row">
+                <label class="checkline">
+                  <input id="distinctInput" type="checkbox" />
+                  去重
+                </label>
+                <label id="aggregatePicker" class="compact-label">
+                  统计方式
+                  <select id="aggregateSelect">
+                    <option value="count">计数</option>
+                    <option value="sum">求和</option>
+                    <option value="avg">平均</option>
+                    <option value="min">最小</option>
+                    <option value="max">最大</option>
+                  </select>
+                </label>
+              </div>
+              <div id="fieldSelector" class="field-grid"></div>
+              <div id="mutationValues" class="mutation-values"></div>
+            </section>
+
+            <section class="intent-card builder-step-panel" data-step-panel="relations">
+              <div class="card-heading">
+                <span class="step-badge">4</span>
+                <h2>关联关系</h2>
+                <button id="addJoinButton" class="relation-add-button" type="button">+ 添加关联</button>
+              </div>
+              <div id="joinEditor" class="join-editor"></div>
+              <div id="joinGraph" class="relation-graph" aria-label="关联关系图"></div>
+            </section>
+
+            <section class="intent-card builder-step-panel" data-step-panel="conditions">
+              <div class="card-heading">
+                <span class="step-badge">5</span>
+                <h2>筛选条件</h2>
+                <button id="addRootConditionButton" class="condition-add-button" type="button">+ 添加条件</button>
+              </div>
+              <div id="conditionTree" class="condition-tree"></div>
+            </section>
+
+            <section class="intent-card builder-step-panel" data-step-panel="result">
+              <div class="card-heading">
+                <span class="step-badge">6</span>
+                <h2>结果处理</h2>
+              </div>
+              <div class="result-controls">
+                <label class="checkline">
+                  <input id="groupByToggle" type="checkbox" />
+                  分组
+                </label>
+                <label>
+                  分组字段
+                  <select id="groupBySelect" multiple size="4"></select>
+                </label>
+                <label>
+                  排序字段
+                  <select id="sortFieldSelect"></select>
+                </label>
+                <label>
+                  排序
+                  <select id="sortDirectionSelect">
+                    <option value="ASC">升序</option>
+                    <option value="DESC">降序</option>
+                  </select>
+                </label>
+                <label>
+                  每页条数
+                  <input id="limitInput" type="number" min="0" step="1" />
+                </label>
+                <label>
+                  跳过条数
+                  <input id="offsetInput" type="number" min="0" step="1" />
+                </label>
+              </div>
+            </section>
+
+            <section id="advancedCard" class="intent-card builder-step-panel advanced-only" data-step-panel="advanced">
+              <div class="card-heading">
+                <span class="step-badge">7</span>
+                <h2>高级展开</h2>
+              </div>
+              <div class="advanced-controls">
+                <label>
+                  WITH 子句
+                  <textarea id="withInput" rows="3" placeholder="cte_name AS (SELECT ...)" spellcheck="false"></textarea>
+                </label>
+                <label>
+                  计算字段 / CASE / 函数 / 窗口函数
+                  <textarea id="computedInput" rows="3" placeholder="CASE WHEN ... THEN ... END AS label" spellcheck="false"></textarea>
+                </label>
+                <label>
+                  HAVING
+                  <input id="havingInput" type="text" placeholder="COUNT(*) > :p 或 SUM(amount) > 1000" />
+                </label>
+                <label>
+                  UNION
+                  <textarea id="unionInput" rows="3" placeholder="SELECT ... FROM ..." spellcheck="false"></textarea>
+                </label>
+              </div>
+            </section>
+
+            <section id="expertCard" class="intent-card builder-step-panel expert-only" data-step-panel="advanced">
+              <div class="card-heading">
+                <span class="step-badge">8</span>
+                <h2>专家能力</h2>
+              </div>
+              <div class="advanced-controls">
+                <label>
+                  专家类型
+                  <select id="expertKindSelect">
+                    <option value="none">不使用</option>
+                    <option value="createTable">建表</option>
+                    <option value="alterTable">改表</option>
+                    <option value="createIndex">索引</option>
+                    <option value="createView">视图</option>
+                    <option value="transaction">事务</option>
+                    <option value="permission">权限</option>
+                    <option value="raw">Raw SQL</option>
+                  </select>
+                </label>
+                <label>
+                  专家 SQL 片段
+                  <textarea id="expertSqlInput" rows="5" placeholder="仅用于本地生成和解释，不执行。" spellcheck="false"></textarea>
+                </label>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <aside class="panel result-panel" aria-label="生成结果">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">生成结果</span>
+              <h2>SQL / 参数 / 解释</h2>
+            </div>
+            <div class="result-heading-actions">
+              <button id="saveHistoryButton" class="icon-button" type="button" title="保存到历史" aria-label="保存到历史">☆</button>
+              <button id="copySqlButton" class="icon-button" type="button" title="复制 SQL" aria-label="复制 SQL">⧉</button>
+            </div>
+          </div>
+          <div class="result-tabs" role="tablist" aria-label="结果视图">
+            <button class="result-tab active" data-tab="sql" type="button">SQL预览</button>
+            <button class="result-tab" data-tab="paramSql" type="button">参数化</button>
+            <button class="result-tab" data-tab="params" type="button">参数</button>
+            <button class="result-tab" data-tab="explain" type="button">说明</button>
+            <button class="result-tab" data-tab="risks" type="button">风险</button>
+          </div>
+          <pre id="sqlOutput" class="result-view active"></pre>
+          <pre id="paramSqlOutput" class="result-view"></pre>
+          <pre id="paramsOutput" class="result-view"></pre>
+          <div id="explainOutput" class="result-view prose"></div>
+          <div id="riskOutput" class="result-view risk-list"></div>
+        </aside>
+      </main>
+
+      <div id="fileSyncModal" class="utility-modal" hidden role="dialog" aria-modal="true" aria-labelledby="fileSyncModalTitle">
+        <div class="utility-modal-backdrop" data-close-file-sync-modal></div>
+        <section class="utility-dialog">
+          <header class="utility-dialog-header">
+            <div><span class="eyebrow">工具</span><h2 id="fileSyncModalTitle">本地配置</h2></div>
+            <button class="icon-button" type="button" data-close-file-sync-modal aria-label="关闭">×</button>
+          </header>
+          <section class="utility-panel">
+            <section class="file-sync-card" aria-labelledby="fileSyncTitle">
+              <div>
+                <strong id="fileSyncTitle">本地配置文件</strong>
+                <p>请连接或新建一个 JSON 配置文件。连接后，启动会自动读取，修改会自动保存。</p>
+              </div>
+              <div class="dock-actions">
+                <button id="connectFileSyncButton" class="secondary-button" type="button">连接已有文件</button>
+                <button id="createFileSyncButton" class="secondary-button" type="button">新建配置文件</button>
+                <button id="saveFileSyncButton" type="button">立即保存</button>
+              </div>
+              <p id="fileSyncStatus" class="storage-status"></p>
+            </section>
+          </section>
+        </section>
+      </div>
+      <div id="historyModal" class="utility-modal" hidden role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
+        <div class="utility-modal-backdrop" data-close-history-modal></div>
+        <section class="utility-dialog history-dialog">
+          <header class="utility-dialog-header">
+            <div><span class="eyebrow">工具</span><h2 id="historyModalTitle">历史</h2></div>
+            <button class="icon-button" type="button" data-close-history-modal aria-label="关闭">×</button>
+          </header>
+          <div class="history-dialog-body">
+            <div id="historyList" class="dock-list utility-history-list"></div>
+            <section class="history-preview"><span class="eyebrow">SQL 预览</span><pre id="historySqlPreview">选择一条历史记录查看 SQL。</pre></section>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="./app-main.js?v=20260711-dict-editor-3"></script>
+  </body>
+</html>
