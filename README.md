@@ -43,7 +43,6 @@
 
 - 修复 PostgreSQL `$1` 与 `$10` 等参数预览串号：预览替换会优先处理更长占位符，避免复制 SQL 时条件值被拼错。
 - MySQL 不再允许在关系菜单选择 FULL JOIN；切换到 MySQL 时，已有 FULL JOIN 会自动降级为 LEFT JOIN。
-- MySQL 在“每页条数=0、跳过>0”时不再生成裸 `OFFSET`，会生成 `LIMIT 18446744073709551615 OFFSET n`。
 - 专家模式“改表”按方言生成新增列语法：SQL Server 使用 `ADD column_definition`，Oracle 使用 `ADD (column_definition)`，其余方言保持 `ADD COLUMN`。
 - MySQL 事务生成使用 `START TRANSACTION`，不再生成 `BEGIN TRANSACTION`。
 - SQLite 增加版本选项：`SQLite < 3.39` 禁用 RIGHT/FULL JOIN；`SQLite 3.39+` 允许。
